@@ -1,0 +1,224 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrapOwner() {
+      return isVerifiedUser() && request.auth.token.email == 'yashshinge111@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapOwner() || (
+        isVerifiedUser() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // --- Entity Validation Blueprints ---
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['email', 'role', 'addedBy', 'createdAt']) &&
+        data.keys().hasOnly(['email', 'role', 'addedBy', 'createdAt']) &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 200 &&
+        data.role == 'admin' &&
+        data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 128 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'slug', 'isDefault', 'createdBy', 'createdAt']) &&
+        data.keys().hasOnly(['name', 'slug', 'isDefault', 'createdBy', 'createdAt']) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+        data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 80 &&
+        data.slug.matches('^[a-z0-9-]+$') &&
+        data.isDefault is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidLogoUrl(val) {
+      return val is string &&
+        val.size() <= 100000 && (
+          val == '' ||
+          val.matches('^https?://.+') ||
+          val.matches('^data:image/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$')
+        );
+    }
+
+    function isValidBusiness(data) {
+      return data.keys().hasAll([
+          'name', 'slug', 'category', 'googleReviewUrl', 'location',
+          'enabled', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'name', 'slug', 'category', 'googleReviewUrl', 'logoUrl', 'location',
+          'enabled', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 120 &&
+        data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 80 &&
+        data.slug.matches('^[a-z0-9-]+$') &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 80 &&
+        data.googleReviewUrl is string && data.googleReviewUrl.size() >= 10 && data.googleReviewUrl.size() <= 500 &&
+        data.googleReviewUrl.matches('^https?://.+') &&
+        (!('logoUrl' in data.keys()) || isValidLogoUrl(data.logoUrl)) &&
+        data.location is string && data.location.size() <= 120 &&
+        data.enabled is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUsageLog(data) {
+      return data.keys().hasAll([
+          'businessId', 'businessName', 'category', 'language',
+          'keywordCount', 'isRegeneration', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'businessId', 'businessName', 'category', 'language',
+          'keywordCount', 'isRegeneration', 'createdAt'
+        ]) &&
+        data.businessId is string && isValidId(data.businessId) &&
+        data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120 &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 80 &&
+        data.language in ['English', 'Hindi', 'Marathi', 'Hinglish'] &&
+        data.keywordCount is int && data.keywordCount >= 1 && data.keywordCount <= 10 &&
+        data.isRegeneration is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll([
+          'businessId', 'businessName', 'ownerEmail', 'plan', 'status',
+          'billingCycle', 'renewalDate', 'notes', 'updatedBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'businessId', 'businessName', 'ownerEmail', 'plan', 'status',
+          'billingCycle', 'renewalDate', 'notes', 'updatedBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.businessId is string && isValidId(data.businessId) &&
+        data.businessName is string && data.businessName.size() >= 2 && data.businessName.size() <= 120 &&
+        data.ownerEmail is string && data.ownerEmail.size() <= 200 &&
+        data.plan in ['free', 'starter', 'pro', 'enterprise'] &&
+        data.status in ['active', 'trial', 'past_due', 'suspended'] &&
+        data.billingCycle in ['monthly', 'annual'] &&
+        data.renewalDate is string && data.renewalDate.size() <= 20 &&
+        data.notes is string && data.notes.size() <= 300 &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Connection Check Document ---
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+      allow list, write: if false;
+    }
+
+    // --- Admins Collection ---
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isAdmin() || (isVerifiedUser() && request.auth.uid == userId));
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isAdmin() &&
+        isValidAdminUser(incoming()) &&
+        incoming().addedBy == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(userId) && isAdmin() && request.auth.uid != userId;
+    }
+
+    // --- Categories Collection ---
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+      allow create: if isValidId(categoryId) && isAdmin() &&
+        isValidCategory(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(categoryId) && isAdmin() &&
+        isValidCategory(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'slug', 'isDefault']) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // --- Businesses Collection ---
+    match /businesses/{businessId} {
+      allow get: if isValidId(businessId) && (existing().enabled == true || isAdmin());
+      allow list: if resource.data.enabled == true || isAdmin();
+      allow create: if isValidId(businessId) && isAdmin() &&
+        isValidBusiness(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(businessId) && isAdmin() &&
+        isValidBusiness(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'slug', 'category', 'googleReviewUrl', 'logoUrl', 'location', 'enabled', 'updatedAt'
+        ]) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(businessId) && isAdmin();
+    }
+
+    // --- Usage Logs Collection (Anonymous Review Telemetry) ---
+    match /usageLogs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(logId) &&
+        isValidUsageLog(incoming()) &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/businesses/$(incoming().businessId)) &&
+        get(/databases/$(database)/documents/businesses/$(incoming().businessId)).data.enabled == true;
+      allow update: if false;
+      allow delete: if isValidId(logId) && isAdmin();
+    }
+
+    // --- Subscriptions & Business Accounts Collection (Admin-Only PII) ---
+    match /subscriptions/{businessId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(businessId) && isAdmin() &&
+        isValidSubscription(incoming()) &&
+        incoming().businessId == businessId &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/businesses/$(businessId));
+      allow update: if isValidId(businessId) && isAdmin() &&
+        isValidSubscription(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'businessName', 'ownerEmail', 'plan', 'status', 'billingCycle', 'renewalDate', 'notes', 'updatedBy', 'updatedAt'
+        ]) &&
+        incoming().businessId == existing().businessId &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(businessId) && isAdmin();
+    }
+  }
+}

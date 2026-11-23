@@ -1,0 +1,304 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized administrator granted access to manage businesses, categories, and usage analytics.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 200,
+          "description": "Verified Google account email address of the administrator."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"],
+          "description": "Role assigned to this user."
+        },
+        "addedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the admin who granted access."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin access was created."
+        }
+      },
+      "required": ["email", "role", "addedBy", "createdAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Business category available for organizing businesses and tailoring review context.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Display name of the business category."
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "pattern": "^[a-z0-9-]+$",
+          "description": "URL-safe lowercase slug for the category."
+        },
+        "isDefault": {
+          "type": "boolean",
+          "description": "True if this is one of the built-in default categories."
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the administrator who created this category."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the category was created."
+        }
+      },
+      "required": ["name", "slug", "isDefault", "createdBy", "createdAt"]
+    },
+    "Business": {
+      "title": "Business",
+      "description": "Registered business profile with its own Google Review URL and unique customer-facing link.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120,
+          "description": "Public name of the business."
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Unique URL slug used for the customer-facing link."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Business category name."
+        },
+        "googleReviewUrl": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500,
+          "pattern": "^https?://.+",
+          "description": "Unique Google Review URL specific to this business."
+        },
+        "logoUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 100000,
+          "description": "Optional store logo URL (https://) or compressed raster image data URI."
+        },
+        "location": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Optional city or neighborhood label."
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the business is active and accessible to customers."
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the administrator who created this business."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the business was added."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the business was last updated."
+        }
+      },
+      "required": [
+        "name",
+        "slug",
+        "category",
+        "googleReviewUrl",
+        "location",
+        "enabled",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UsageLog": {
+      "title": "UsageLog",
+      "description": "Anonymous review generation telemetry event for admin usage statistics (no customer PII).",
+      "type": "object",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Document ID of the enabled business."
+        },
+        "businessName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Snapshot name of the business at generation time."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Category of the business."
+        },
+        "language": {
+          "type": "string",
+          "enum": ["English", "Hindi", "Marathi", "Hinglish"],
+          "description": "Language selected by the customer."
+        },
+        "keywordCount": {
+          "type": "integer",
+          "description": "Number of keywords entered by the customer (1 to 10)."
+        },
+        "isRegeneration": {
+          "type": "boolean",
+          "description": "Whether this event came from the regenerate button."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the 3 reviews were generated."
+        }
+      },
+      "required": [
+        "businessId",
+        "businessName",
+        "category",
+        "language",
+        "keywordCount",
+        "isRegeneration",
+        "createdAt"
+      ]
+    },
+    "BusinessSubscription": {
+      "title": "BusinessSubscription",
+      "description": "Admin-only subscription and business account billing record linked to a business.",
+      "type": "object",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Document ID of the associated business."
+        },
+        "businessName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120,
+          "description": "Name of the business account."
+        },
+        "ownerEmail": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 200,
+          "description": "Business owner account email address."
+        },
+        "plan": {
+          "type": "string",
+          "enum": ["free", "starter", "pro", "enterprise"],
+          "description": "Subscription tier for the business account."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "trial", "past_due", "suspended"],
+          "description": "Current subscription status."
+        },
+        "billingCycle": {
+          "type": "string",
+          "enum": ["monthly", "annual"],
+          "description": "Billing cycle for the subscription."
+        },
+        "renewalDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 20,
+          "description": "Optional next renewal or expiry date (YYYY-MM-DD)."
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Optional admin account notes."
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the administrator who last updated this subscription."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the subscription record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the subscription record was last updated."
+        }
+      },
+      "required": [
+        "businessId",
+        "businessName",
+        "ownerEmail",
+        "plan",
+        "status",
+        "billingCycle",
+        "renewalDate",
+        "notes",
+        "updatedBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Administrator access registry."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Business categories (default and admin-created custom categories)."
+    },
+    "/businesses/{businessId}": {
+      "schema": { "$ref": "#/entities/Business" },
+      "description": "Registered businesses with unique customer links and Google Review URLs."
+    },
+    "/subscriptions/{businessId}": {
+      "schema": { "$ref": "#/entities/BusinessSubscription" },
+      "description": "Admin-only business account & subscription management records."
+    },
+    "/usageLogs/{logId}": {
+      "schema": { "$ref": "#/entities/UsageLog" },
+      "description": "Review generation usage statistics log (no PII)."
+    }
+  }
+}
